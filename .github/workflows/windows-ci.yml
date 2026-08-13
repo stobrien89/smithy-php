@@ -33,7 +33,7 @@ jobs:
             opcache.jit_buffer_size=64M
 
       - name: Install Composer dependencies
-        uses: ramsey/composer-install@v3
+        run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit
