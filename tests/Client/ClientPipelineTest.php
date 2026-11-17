@@ -1066,6 +1066,63 @@ final class ClientPipelineTest extends TestCase
         $this->assertSame(0, $http->sendCallCount);
     }
 
+    public function testNullIdentityResolverFailsBeforeTransmit(): void
+    {
+        $http = (new MockHttpClient())->willReturn('body');
+        $nullResolverScheme = new class implements AuthSchemeInterface {
+            public function getSchemeId(): string
+            {
+                return 'smithy.api#httpBearerAuth';
+            }
+
+            public function getIdentityProperties(array $context): array
+            {
+                return [];
+            }
+
+            public function getIdentityResolver(
+                \Smithy\Client\Auth\IdentityResolversInterface $resolvers
+            ): ?IdentityResolverInterface {
+                return null;
+            }
+
+            public function getSignerProperties(array $context): array
+            {
+                return [];
+            }
+
+            public function getSigner(): SignerInterface
+            {
+                return \Smithy\Client\Auth\NullSigner::instance();
+            }
+        };
+        $pipeline = new ClientPipeline(new ClientConfig(
+            protocol: new FakeProtocol(),
+            transport: new \Smithy\Http\Client\HttpClientTransport(
+                $http
+            ),
+            endpointResolver: new StaticEndpointResolver(
+                new Endpoint('https://example.test')
+            ),
+            supportedAuthSchemes: [$nullResolverScheme],
+            authSchemeResolver: new StaticAuthSchemeResolver([
+                'smithy.api#httpBearerAuth'
+            ])
+        ));
+
+        try {
+            $pipeline->execute(FakeOperation::instance(), new FakeInput());
+            $this->fail('Expected auth resolution to fail.');
+        } catch (IdentityNotFoundException $error) {
+            $this->assertStringContainsString(
+                'no usable identity resolver',
+                $error->getMessage()
+            );
+        }
+
+        $this->assertSame(0, $http->sendCallCount);
+    }
+
     public function testProtocolIsCalledExactlyOncePerAttempt(): void
     {
         $protocol = new FakeProtocol();

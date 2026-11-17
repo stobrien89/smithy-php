@@ -105,6 +105,63 @@ final class AuthSchemeResolverTest extends TestCase
         );
     }
 
+    public function testPassesClientContextToSchemeProperties(): void
+    {
+        $scheme = new class implements \Smithy\Client\Auth\AuthSchemeInterface {
+            public function getSchemeId(): string
+            {
+                return 'aws.auth#sigv4';
+            }
+
+            /** @param array<string, mixed> $context */
+            public function getIdentityProperties(array $context): array
+            {
+                return ['identityContext' => $context['token'] ?? null];
+            }
+
+            public function getIdentityResolver(
+                \Smithy\Client\Auth\IdentityResolversInterface $resolvers
+            ): ?\Smithy\Client\Auth\IdentityResolverInterface {
+                return \Smithy\Client\Auth\AnonymousIdentityResolver::instance();
+            }
+
+            /** @param array<string, mixed> $context */
+            public function getSignerProperties(array $context): array
+            {
+                return ['signerContext' => $context['token'] ?? null];
+            }
+
+            public function getSigner(): \Smithy\Client\Auth\SignerInterface
+            {
+                return \Smithy\Client\Auth\NullSigner::instance();
+            }
+        };
+        $config = (new ClientConfig(
+            protocol: new FakeProtocol(),
+            transport: new \Smithy\Http\Client\HttpClientTransport(
+                new MockHttpClient()
+            ),
+            endpointResolver: new StaticEndpointResolver(
+                new Endpoint('https://example.test')
+            ),
+            supportedAuthSchemes: [$scheme]
+        ))->withContext('token', 'from-context');
+
+        $resolved = $config->authSchemeResolver->resolveAuthScheme(
+            $this->operation([self::SIGV4]),
+            $config
+        );
+
+        $this->assertSame(
+            ['identityContext' => 'from-context'],
+            $resolved->identityProperties
+        );
+        $this->assertSame(
+            ['signerContext' => 'from-context'],
+            $resolved->signerProperties
+        );
+    }
+
     public function testMergesAuthSchemeOptionOverrides(): void
     {
         $scheme = new TestAuthSchemeFixture(

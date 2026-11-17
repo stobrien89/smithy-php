@@ -9,8 +9,6 @@ declare(strict_types=1);
 
 namespace Smithy\Client\Auth;
 
-use Smithy\Client\ClientConfig;
-
 /**
  * The `smithy.api#noAuth` scheme: anonymous identity plus null signer.
  *
@@ -40,21 +38,21 @@ final class NoAuthScheme implements AuthSchemeInterface
     }
 
     /** @inheritDoc */
-    public function getIdentityProperties(ClientConfig $config): array
+    public function getIdentityProperties(array $context): array
     {
         return [];
     }
 
     /** @inheritDoc */
     public function getIdentityResolver(
-        ClientConfig $config
-    ): IdentityResolverInterface
+        IdentityResolversInterface $resolvers
+    ): ?IdentityResolverInterface
     {
         return AnonymousIdentityResolver::instance();
     }
 
     /** @inheritDoc */
-    public function getSignerProperties(ClientConfig $config): array
+    public function getSignerProperties(array $context): array
     {
         return [];
     }

@@ -12,6 +12,9 @@ namespace Smithy\Client;
 use Smithy\Client\Auth\AuthSchemeInterface;
 use Smithy\Client\Auth\AuthSchemeResolver;
 use Smithy\Client\Auth\AuthSchemeResolverInterface;
+use Smithy\Client\Auth\IdentityResolverInterface;
+use Smithy\Client\Auth\IdentityResolvers;
+use Smithy\Client\Auth\IdentityResolversInterface;
 use Smithy\Client\Auth\NoAuthScheme;
 use Smithy\Client\Endpoint\EndpointResolverInterface;
 use Smithy\Client\Interceptor\InterceptorChain;
@@ -64,6 +67,8 @@ class ClientConfig
 
     public readonly AuthSchemeResolverInterface $authSchemeResolver;
 
+    public readonly IdentityResolversInterface $identityResolvers;
+
     public readonly RetryStrategyInterface $retryStrategy;
 
     public readonly string $retryScope;
@@ -90,6 +95,9 @@ class ClientConfig
      *                                  the resolver may select from.
      * @param AuthSchemeResolverInterface|null $authSchemeResolver
      *                                         Selects a scheme per operation.
+     * @param IdentityResolversInterface|null $identityResolvers Repository of
+     *        identity resolvers keyed by identity type, queried by auth
+     *        schemes. Defaults to an empty {@see IdentityResolvers}.
      * @param list<string> $authSchemePreference Auth scheme names in
      *        customer-preferred order.
      * @param RetryStrategyInterface|null $retryStrategy Defaults to a new
@@ -124,7 +132,8 @@ class ClientConfig
         public readonly ?ServiceInterface $service = null,
         ?PluginState $pluginState = null,
         ?bool $protocolIsExplicit = null,
-        ?array $explicitFields = null
+        ?array $explicitFields = null,
+        ?IdentityResolversInterface $identityResolvers = null
     )
     {
         if ($protocolId === '') {
@@ -195,6 +204,8 @@ class ClientConfig
 
         $this->authSchemeResolver = $authSchemeResolver
             ?? new AuthSchemeResolver();
+        $this->identityResolvers = $identityResolvers
+            ?? new IdentityResolvers();
         $this->retryStrategy = $retryStrategy ?? new StandardRetryStrategy();
         $this->retryScope = $retryScope;
         $this->context = $context;
@@ -540,6 +551,54 @@ class ClientConfig
     }
 
     /**
+     * Create a config with the identity resolver repository replaced.
+     */
+    public function withIdentityResolvers(
+        IdentityResolversInterface $resolvers
+    ): static
+    {
+        return $this->copyWith(['identityResolvers' => $resolvers]);
+    }
+
+    /**
+     * Create a config with one identity resolver registered by identity type.
+     *
+     * Adds to the current {@see IdentityResolvers}, replacing any resolver
+     * already registered for the same identity type.
+     *
+     * @param class-string<\Smithy\Client\Auth\IdentityInterface> $identityClass
+     */
+    public function withIdentityResolver(
+        string $identityClass,
+        IdentityResolverInterface $resolver
+    ): static
+    {
+        $resolvers = $this->identityResolvers;
+        if (!$resolvers instanceof IdentityResolvers) {
+            throw new \LogicException(
+                'withIdentityResolver() requires the default '
+                . IdentityResolvers::class
+                . ' repository; use withIdentityResolvers() instead.'
+            );
+        }
+
+        return $this->copyWith([
+            'identityResolvers' => $resolvers->with(
+                $identityClass,
+                $resolver
+            )
+        ]);
+    }
+
+    /**
+     * Return the configured identity resolver repository.
+     */
+    public function getIdentityResolvers(): IdentityResolversInterface
+    {
+        return $this->identityResolvers;
+    }
+
+    /**
      * Create a config with the auth scheme preference replaced.
      *
      * @param list<string> $preference
@@ -627,6 +686,8 @@ class ClientConfig
             ?? $this->supportedAuthSchemes;
         $authSchemeResolver = $overrides['authSchemeResolver']
             ?? $this->authSchemeResolver;
+        $identityResolvers = $overrides['identityResolvers']
+            ?? $this->identityResolvers;
         $retryStrategy =
             $overrides['retryStrategy'] ?? $this->retryStrategy;
         $retryScope = $overrides['retryScope'] ?? $this->retryScope;
@@ -650,7 +711,8 @@ class ClientConfig
                 ?? $this->authSchemePreference,
             service: $service,
             pluginState: $pluginState,
-            explicitFields: $explicitFields
+            explicitFields: $explicitFields,
+            identityResolvers: $identityResolvers
         );
     }
 

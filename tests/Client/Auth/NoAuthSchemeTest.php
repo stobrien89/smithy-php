@@ -13,14 +13,10 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Smithy\Client\Auth\{
     AnonymousIdentityResolver,
+    IdentityResolvers,
     NoAuthScheme,
     NullSigner
 };
-use Smithy\Client\ClientConfig;
-use Smithy\Client\Endpoint\StaticEndpointResolver;
-use Smithy\Core\Endpoint\Endpoint;
-use Smithy\Tests\Client\Fake\FakeProtocol;
-use Smithy\Tests\Utils\Http\MockHttpClient;
 
 #[CoversClass(NoAuthScheme::class)]
 final class NoAuthSchemeTest extends TestCase
@@ -28,21 +24,14 @@ final class NoAuthSchemeTest extends TestCase
     public function testReturnsAnonymousAuthComponents(): void
     {
         $scheme = NoAuthScheme::instance();
-        $config = new ClientConfig(
-            protocol: new FakeProtocol(),
-            transport: new \Smithy\Http\Client\HttpClientTransport(
-                new MockHttpClient()
-            ),
-            endpointResolver: new StaticEndpointResolver(
-                new Endpoint('https://example.test')
-            )
-        );
 
         self::assertSame($scheme, NoAuthScheme::instance());
         self::assertSame(NoAuthScheme::ID, $scheme->getSchemeId());
+        self::assertSame([], $scheme->getIdentityProperties([]));
+        self::assertSame([], $scheme->getSignerProperties([]));
         self::assertSame(
             AnonymousIdentityResolver::instance(),
-            $scheme->getIdentityResolver($config)
+            $scheme->getIdentityResolver(new IdentityResolvers())
         );
         self::assertSame(NullSigner::instance(), $scheme->getSigner());
     }

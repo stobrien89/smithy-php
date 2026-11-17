@@ -15,13 +15,9 @@ use Smithy\Client\Auth\{
     BearerToken,
     HttpBearerAuthScheme,
     HttpBearerAuthSigner,
+    IdentityResolvers,
     StaticTokenProvider
 };
-use Smithy\Client\ClientConfig;
-use Smithy\Client\Endpoint\StaticEndpointResolver;
-use Smithy\Core\Endpoint\Endpoint;
-use Smithy\Tests\Client\Fake\FakeProtocol;
-use Smithy\Tests\Utils\Http\MockHttpClient;
 
 #[CoversClass(HttpBearerAuthScheme::class)]
 final class HttpBearerAuthSchemeTest extends TestCase
@@ -30,18 +26,9 @@ final class HttpBearerAuthSchemeTest extends TestCase
     {
         $provider = new StaticTokenProvider('token', 123.0);
         $scheme = new HttpBearerAuthScheme($provider);
-        $config = new ClientConfig(
-            protocol: new FakeProtocol(),
-            transport: new \Smithy\Http\Client\HttpClientTransport(
-                new MockHttpClient()
-            ),
-            endpointResolver: new StaticEndpointResolver(
-                new Endpoint('https://example.test')
-            )
-        );
 
         $identity = $scheme
-            ->getIdentityResolver($config)
+            ->getIdentityResolver(new IdentityResolvers())
             ->resolveIdentity()
             ->unwrap();
 
@@ -51,6 +38,28 @@ final class HttpBearerAuthSchemeTest extends TestCase
         self::assertSame(
             HttpBearerAuthSigner::instance(),
             $scheme->getSigner()
+        );
+    }
+
+    public function testFallsBackToResolversRepositoryForBearerToken(): void
+    {
+        $provider = new StaticTokenProvider('token', 123.0);
+        $scheme = new HttpBearerAuthScheme();
+        $resolvers = (new IdentityResolvers())
+            ->with(BearerToken::class, $provider);
+
+        self::assertSame(
+            $provider,
+            $scheme->getIdentityResolver($resolvers)
+        );
+    }
+
+    public function testReturnsNullWhenNoProviderAndNoResolver(): void
+    {
+        $scheme = new HttpBearerAuthScheme();
+
+        self::assertNull(
+            $scheme->getIdentityResolver(new IdentityResolvers())
         );
     }
 }

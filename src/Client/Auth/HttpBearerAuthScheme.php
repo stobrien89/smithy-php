@@ -9,8 +9,6 @@ declare(strict_types=1);
 
 namespace Smithy\Client\Auth;
 
-use Smithy\Client\ClientConfig;
-
 /**
  * Provide the Smithy HTTP bearer authentication scheme.
  */
@@ -20,9 +18,13 @@ final readonly class HttpBearerAuthScheme implements AuthSchemeInterface
 
     /**
      * Create an HTTP bearer auth scheme.
+     *
+     * When `$tokenProvider` is null the scheme looks up a {@see BearerToken}
+     * resolver from the {@see IdentityResolversInterface} supplied at
+     * resolution time, mirroring smithy-java.
      */
     public function __construct(
-        private IdentityResolverInterface $tokenProvider
+        private ?IdentityResolverInterface $tokenProvider = null
     ) {}
 
     /** @inheritDoc */
@@ -32,21 +34,22 @@ final readonly class HttpBearerAuthScheme implements AuthSchemeInterface
     }
 
     /** @inheritDoc */
-    public function getIdentityProperties(ClientConfig $config): array
+    public function getIdentityProperties(array $context): array
     {
         return [];
     }
 
     /** @inheritDoc */
     public function getIdentityResolver(
-        ClientConfig $config
-    ): IdentityResolverInterface
+        IdentityResolversInterface $resolvers
+    ): ?IdentityResolverInterface
     {
-        return $this->tokenProvider;
+        return $this->tokenProvider
+            ?? $resolvers->identityResolver(BearerToken::class);
     }
 
     /** @inheritDoc */
-    public function getSignerProperties(ClientConfig $config): array
+    public function getSignerProperties(array $context): array
     {
         return [];
     }

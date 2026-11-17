@@ -15,8 +15,11 @@ use PHPUnit\Framework\TestCase;
 use Smithy\Client\Auth\{
     AuthSchemeResolver,
     AuthSchemeInterface,
+    BearerToken,
+    IdentityResolvers,
     NoAuthScheme,
-    StaticAuthSchemeResolver
+    StaticAuthSchemeResolver,
+    StaticTokenProvider
 };
 use Smithy\Client\ClientConfig;
 use Smithy\Client\ExplicitClientConfigField;
@@ -325,6 +328,51 @@ final class ClientConfigTest extends TestCase
                 FakeOperation::instance(),
                 $config
             )->scheme
+        );
+    }
+
+    public function testDefaultsToEmptyIdentityResolvers(): void
+    {
+        $config = $this->baseConfig();
+
+        $this->assertInstanceOf(
+            IdentityResolvers::class,
+            $config->getIdentityResolvers()
+        );
+        $this->assertNull(
+            $config->getIdentityResolvers()
+                ->identityResolver(BearerToken::class)
+        );
+    }
+
+    public function testWithIdentityResolverRegistersByType(): void
+    {
+        $provider = new StaticTokenProvider('token');
+        $orig = $this->baseConfig();
+        $new = $orig->withIdentityResolver(BearerToken::class, $provider);
+
+        $this->assertNull(
+            $orig->getIdentityResolvers()
+                ->identityResolver(BearerToken::class)
+        );
+        $this->assertSame(
+            $provider,
+            $new->getIdentityResolvers()
+                ->identityResolver(BearerToken::class)
+        );
+    }
+
+    public function testIdentityResolversSurviveBaseWithers(): void
+    {
+        $provider = new StaticTokenProvider('token');
+        $config = $this->baseConfig()
+            ->withIdentityResolver(BearerToken::class, $provider)
+            ->withRetryScope('scope');
+
+        $this->assertSame(
+            $provider,
+            $config->getIdentityResolvers()
+                ->identityResolver(BearerToken::class)
         );
     }
 

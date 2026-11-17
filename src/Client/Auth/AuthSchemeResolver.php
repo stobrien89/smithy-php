@@ -186,11 +186,11 @@ class AuthSchemeResolver implements AuthSchemeResolverInterface
         return new ResolvedAuthScheme(
             $scheme,
             [
-                ...$scheme->getIdentityProperties($config),
+                ...$scheme->getIdentityProperties($config->context),
                 ...$option->identityPropertyOverrides
             ],
             [
-                ...$scheme->getSignerProperties($config),
+                ...$scheme->getSignerProperties($config->context),
                 ...$option->signerPropertyOverrides
             ]
         );

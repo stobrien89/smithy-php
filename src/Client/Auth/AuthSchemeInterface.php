@@ -9,15 +9,17 @@ declare(strict_types=1);
 
 namespace Smithy\Client\Auth;
 
-use Smithy\Client\ClientConfig;
-
 /**
  * Named authentication scheme: identity resolver plus signer.
  *
  * An {@see AuthSchemeResolverInterface} selects the scheme. The client
  * pipeline then calls `getIdentityResolver()` and `getSigner()` on the
- * resolved scheme. The scheme is responsible for wiring the correct
- * resolver from the client config.
+ * resolved scheme. The scheme wires its resolver either from its own
+ * configuration or from the supplied {@see IdentityResolversInterface}.
+ *
+ * The property methods receive the client `context` bag (the array built
+ * by `ClientConfig::withContext()`) rather than the config itself, so an
+ * auth scheme never depends on `ClientConfig`.
  *
  * Scheme IDs follow Smithy convention: `smithy.api#httpBearerAuth`,
  * `smithy.api#noAuth`, and vendor-defined scheme IDs.
@@ -32,23 +34,28 @@ interface AuthSchemeInterface
     /**
      * Return default properties used to resolve an identity.
      *
+     * @param array<string, mixed> $context Client context bag.
      * @return array<string, mixed>
      */
-    public function getIdentityProperties(ClientConfig $config): array;
+    public function getIdentityProperties(array $context): array;
 
     /**
-     * Return the identity resolver for this scheme.
+     * Return the identity resolver for this scheme, or null when the scheme
+     * cannot resolve an identity from the supplied repository.
+     *
+     * A null return means the scheme is not usable for the request.
      */
     public function getIdentityResolver(
-        ClientConfig $config
-    ): IdentityResolverInterface;
+        IdentityResolversInterface $resolvers
+    ): ?IdentityResolverInterface;
 
     /**
      * Return default properties used to sign a request.
      *
+     * @param array<string, mixed> $context Client context bag.
      * @return array<string, mixed>
      */
-    public function getSignerProperties(ClientConfig $config): array;
+    public function getSignerProperties(array $context): array;
 
     /**
      * Return the signer for this scheme.
