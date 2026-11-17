@@ -13,8 +13,8 @@ namespace Smithy\Client\Auth;
  * Default {@see IdentityResolversInterface}: a map from identity type to
  * the resolver that produces it.
  *
- * Unlike smithy-java, resolvers do not declare their identity type, so the
- * identity class is supplied explicitly at registration.
+ * The identity class is supplied explicitly at registration, since each
+ * resolver's identity type is declared by the caller.
  */
 final class IdentityResolvers implements IdentityResolversInterface
 {

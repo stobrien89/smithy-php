@@ -15,11 +15,12 @@ namespace Smithy\Client\Auth;
  *
  * An auth scheme asks this repository for the resolver that produces its
  * identity (for example, a `BearerToken` resolver for HTTP bearer auth).
- * A scheme whose identity type has no registered resolver is not usable;
- * {@see identityResolver()} returns null in that case.
+ * When the identity type has a registered resolver, {@see identityResolver()}
+ * returns it; otherwise it returns null, which marks that scheme unusable so
+ * selection moves on to the next option.
  *
- * Mirrors smithy-java's `IdentityResolvers`. Implementations must not
- * depend on `ClientConfig`.
+ * Mirrors smithy-java's `IdentityResolvers`. Implementations depend only on
+ * the identity type and the resolvers they hold.
  */
 interface IdentityResolversInterface
 {

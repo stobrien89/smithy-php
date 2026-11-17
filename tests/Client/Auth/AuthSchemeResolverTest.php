@@ -261,6 +261,85 @@ final class AuthSchemeResolverTest extends TestCase
         );
     }
 
+    public function testSkipsOptionWhoseSchemeHasNoIdentityResolver(): void
+    {
+        $nullScheme = $this->nullResolverScheme(self::BEARER);
+        $usableScheme = new TestAuthSchemeFixture(self::SIGV4);
+        $config = new ClientConfig(
+            protocol: new FakeProtocol(),
+            transport: new \Smithy\Http\Client\HttpClientTransport(
+                new MockHttpClient()
+            ),
+            endpointResolver: new StaticEndpointResolver(
+                new Endpoint('https://example.test')
+            ),
+            supportedAuthSchemes: [$nullScheme, $usableScheme]
+        );
+        $resolver = new StaticAuthSchemeResolver([
+            self::BEARER,
+            self::SIGV4
+        ]);
+
+        $resolved = $resolver->resolveAuthScheme(
+            $this->operation([self::BEARER, self::SIGV4]),
+            $config
+        );
+
+        $this->assertSame($usableScheme, $resolved->scheme);
+    }
+
+    public function testCarriesResolvedIdentityResolver(): void
+    {
+        $tokenProvider = new \Smithy\Client\Auth\StaticTokenProvider('t');
+        $scheme = new TestAuthSchemeFixture(self::SIGV4, $tokenProvider);
+        $config = new ClientConfig(
+            protocol: new FakeProtocol(),
+            transport: new \Smithy\Http\Client\HttpClientTransport(
+                new MockHttpClient()
+            ),
+            endpointResolver: new StaticEndpointResolver(
+                new Endpoint('https://example.test')
+            ),
+            supportedAuthSchemes: [$scheme]
+        );
+
+        $resolved = $config->authSchemeResolver->resolveAuthScheme(
+            $this->operation([self::SIGV4]),
+            $config
+        );
+
+        $this->assertSame($tokenProvider, $resolved->identityResolver);
+    }
+
+    public function testFailsWhenEveryOptionHasNoIdentityResolver(): void
+    {
+        $config = new ClientConfig(
+            protocol: new FakeProtocol(),
+            transport: new \Smithy\Http\Client\HttpClientTransport(
+                new MockHttpClient()
+            ),
+            endpointResolver: new StaticEndpointResolver(
+                new Endpoint('https://example.test')
+            ),
+            supportedAuthSchemes: [
+                $this->nullResolverScheme(self::SIGV4),
+                $this->nullResolverScheme(self::BEARER)
+            ]
+        );
+        $resolver = new StaticAuthSchemeResolver([
+            self::SIGV4,
+            self::BEARER
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('auth scheme');
+
+        $resolver->resolveAuthScheme(
+            $this->operation([self::SIGV4, self::BEARER]),
+            $config
+        );
+    }
+
     public function testPreferenceReordersOptionsWithTheirOverrides(): void
     {
         $sigV4 = new TestAuthSchemeFixture(self::SIGV4);
@@ -516,5 +595,44 @@ final class AuthSchemeResolverTest extends TestCase
             ->willReturn($effectiveAuthSchemes);
 
         return $operation;
+    }
+
+    /**
+     * An auth scheme whose `getIdentityResolver()` returns null.
+     */
+    private function nullResolverScheme(
+        string $schemeId
+    ): \Smithy\Client\Auth\AuthSchemeInterface
+    {
+        return new class ($schemeId)
+            implements \Smithy\Client\Auth\AuthSchemeInterface {
+            public function __construct(private readonly string $id) {}
+
+            public function getSchemeId(): string
+            {
+                return $this->id;
+            }
+
+            public function getIdentityProperties(array $context): array
+            {
+                return [];
+            }
+
+            public function getIdentityResolver(
+                \Smithy\Client\Auth\IdentityResolversInterface $resolvers
+            ): ?\Smithy\Client\Auth\IdentityResolverInterface {
+                return null;
+            }
+
+            public function getSignerProperties(array $context): array
+            {
+                return [];
+            }
+
+            public function getSigner(): \Smithy\Client\Auth\SignerInterface
+            {
+                return \Smithy\Client\Auth\NullSigner::instance();
+            }
+        };
     }
 }

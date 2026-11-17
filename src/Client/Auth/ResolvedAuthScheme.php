@@ -11,6 +11,9 @@ namespace Smithy\Client\Auth;
 
 /**
  * Selected auth scheme and its effective identity and signer properties.
+ *
+ * Carries the identity resolver the scheme produced during selection so the
+ * pipeline reuses it directly.
  */
 final readonly class ResolvedAuthScheme
 {
@@ -21,6 +24,7 @@ final readonly class ResolvedAuthScheme
     public function __construct(
         public AuthSchemeInterface $scheme,
         public array $identityProperties = [],
-        public array $signerProperties = []
+        public array $signerProperties = [],
+        public ?IdentityResolverInterface $identityResolver = null
     ) {}
 }

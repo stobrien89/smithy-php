@@ -64,7 +64,7 @@ dynamic operation metadata expose effective auth schemes through
 
 | Type | Responsibility |
 |---|---|
-| `AuthSchemeInterface` | Bind a scheme ID to an identity resolver and signer. It receives the client context bag for property defaults and an `IdentityResolversInterface` for resolver lookup, never `ClientConfig`. |
+| `AuthSchemeInterface` | Bind a scheme ID to an identity resolver and signer. It receives the client context bag for property defaults and an `IdentityResolversInterface` for resolver lookup. |
 | `AuthSchemeOption` | Carry one candidate ID plus independent identity and signer property overrides. |
 | `AuthSchemeResolverInterface` | Select modeled auth, then reconcile endpoint auth for an attempt. |
 | `ResolvedAuthScheme` | Carry the selected implementation and effective identity and signer properties. |
@@ -72,7 +72,7 @@ dynamic operation metadata expose effective auth schemes through
 | `SignerResult` | Carry the signed request and reusable signature metadata. |
 | `IdentityInterface` | Carry signer-specific identity material. |
 | `IdentityResolverInterface` | Resolve an identity from scheme properties. |
-| `IdentityResolversInterface` | Look up an identity resolver by identity type; returns null when a scheme's identity type is unregistered. |
+| `IdentityResolversInterface` | Look up an identity resolver by identity type; returns the resolver registered for that type, or null to mark the scheme unusable so selection moves to the next option. |
 | `IdentityResult` | Distinguish a successful identity, an expected source miss, and a thrown fatal failure. |
 | `IdentityChain` | Assemble ordered providers and try resolvers in order. |
 | `ChainSetup` | Share assembly state while providers register resolvers. |
@@ -123,7 +123,9 @@ identity and signer property overrides.
 The resolver applies the request-level preference, or
 `ClientConfig::$authSchemePreference`, without discarding duplicate options.
 It selects the first option whose full scheme ID exists in
-`ClientConfig::$supportedAuthSchemes`.
+`ClientConfig::$supportedAuthSchemes` and whose scheme yields a usable
+identity resolver from `ClientConfig::$identityResolvers`. An option whose
+scheme yields no resolver is passed over so a later option can be selected.
 
 After endpoint resolution,
 `resolveEndpointAuthScheme()` reconciles the modeled result with the
@@ -161,12 +163,12 @@ matches exact scheme IDs.
 ## Identity Resolution
 
 An `IdentityResolverInterface` returns an `IdentityResult` from
-identity-specific properties. A scheme obtains its resolver from
-`getIdentityResolver()`, either from its own configuration or by looking the
-identity type up in the `IdentityResolversInterface` repository. A null return
-means the scheme has no usable resolver; the pipeline then raises an
-identity-not-found error for that scheme rather than signing. Scheme defaults
-and option overrides are merged before the resolver is called. Signer
+identity-specific properties. During selection, a scheme obtains its resolver
+from `getIdentityResolver()`, either from its own configuration or by looking
+the identity type up in the `IdentityResolversInterface` repository. A null
+result marks the option unusable, and the resolver advances to the next
+option; a usable resolver makes the option the selected scheme. Scheme
+defaults and option overrides are merged before the resolver is called. Signer
 properties are kept separate.
 
 `IdentityResult::success()` carries an identity. `IdentityResult::notFound()`

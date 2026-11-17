@@ -18,8 +18,8 @@ namespace Smithy\Client\Auth;
  * configuration or from the supplied {@see IdentityResolversInterface}.
  *
  * The property methods receive the client `context` bag (the array built
- * by `ClientConfig::withContext()`) rather than the config itself, so an
- * auth scheme never depends on `ClientConfig`.
+ * by `ClientConfig::withContext()`), so an auth scheme depends only on the
+ * context and the identity resolver repository.
  *
  * Scheme IDs follow Smithy convention: `smithy.api#httpBearerAuth`,
  * `smithy.api#noAuth`, and vendor-defined scheme IDs.
@@ -40,10 +40,11 @@ interface AuthSchemeInterface
     public function getIdentityProperties(array $context): array;
 
     /**
-     * Return the identity resolver for this scheme, or null when the scheme
-     * cannot resolve an identity from the supplied repository.
+     * Return the identity resolver for this scheme, or null when the scheme's
+     * identity resolver is unavailable from the supplied repository.
      *
-     * A null return means the scheme is not usable for the request.
+     * A null return marks the scheme unusable for the request; the resolver
+     * then moves on to the next option.
      */
     public function getIdentityResolver(
         IdentityResolversInterface $resolvers

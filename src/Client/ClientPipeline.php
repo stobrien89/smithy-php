@@ -331,9 +331,10 @@ final class ClientPipeline
                 ->resolveAuthScheme($operation, $config, $preference);
         }
 
-        $identityResolver = $resolvedAuthScheme
-            ->scheme
-            ->getIdentityResolver($config->getIdentityResolvers());
+        $identityResolver = $resolvedAuthScheme->identityResolver
+            ?? $resolvedAuthScheme
+                ->scheme
+                ->getIdentityResolver($config->getIdentityResolvers());
         if ($identityResolver === null) {
             throw new IdentityNotFoundException(
                 'Auth scheme '
@@ -361,9 +362,10 @@ final class ClientPipeline
         if ($authScheme->scheme !== $resolvedAuthScheme->scheme) {
             // A failure below must not leave the modeled identity in place.
             $identity = null;
-            $identityResolver = $authScheme
-                ->scheme
-                ->getIdentityResolver($config->getIdentityResolvers());
+            $identityResolver = $authScheme->identityResolver
+                ?? $authScheme
+                    ->scheme
+                    ->getIdentityResolver($config->getIdentityResolvers());
             if ($identityResolver === null) {
                 throw new IdentityNotFoundException(
                     'Auth scheme '
